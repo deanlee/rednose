@@ -82,6 +82,59 @@ cdef np.ndarray[np.float64_t, ndim=1, mode="c"] vector_to_numpy(VectorXd arr):
   cdef double[:] mem_view = <double[:arr.rows()]>arr.data()
   return np.copy(np.asarray(mem_view, dtype=np.double, order="C"))
 
+cdef class PredictUpdateResult:
+  """
+  Class to encapsulate the results of predict_and_update_batch.
+  This avoids conversion at the return point and allows conversion only when needed.
+  """
+  cdef VectorXd xk1
+  cdef VectorXd xk
+  cdef MatrixXdr Pk1
+  cdef MatrixXdr Pk
+  cdef double t
+  cdef int kind
+  cdef vector[VectorXd] y
+  cdef vector[MapVectorXd] z
+  cdef vector[vector[double]] extra_args
+
+  def __init__(self, Estimate &res, vector[MapVectorXd] &z_input, vector[vector[double]] &extra_args_input):
+    self.xk1 = res.xk1
+    self.xk = res.xk
+    self.Pk1 = res.Pk1
+    self.Pk = res.Pk
+    self.t = res.t
+    self.kind = res.kind
+    self.y = res.y
+    self.z = z_input
+    self.extra_args = extra_args_input
+
+  def get_xk1(self):
+    return vector_to_numpy(self.xk1)
+
+  def get_xk(self):
+    return vector_to_numpy(self.xk)
+
+  def get_Pk1(self):
+    return matrix_to_numpy(self.Pk1)
+
+  def get_Pk(self):
+    return matrix_to_numpy(self.Pk)
+
+  def get_y(self):
+    return [vector_to_numpy(yi) for yi in self.y]
+
+  def get_z(self):
+    return [vector_to_numpy(zi) for zi in self.z]
+
+  def get_extra_args(self):
+    return self.extra_args
+
+  def get_time(self):
+     return self.t
+
+  def get_kind(self):
+    return self.kind
+
 cdef class EKF_sym_pyx:
   cdef EKFSym* ekf
   def __cinit__(self, str gen_dir, str name, np.ndarray[np.float64_t, ndim=2] Q,
